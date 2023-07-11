@@ -49,6 +49,7 @@ module Builders = struct
 end
 
 module OV = Ocaml_version
+module OVR = OV.Releases
 module DD = Dockerfile_opam.Distro
 
 type arch = OV.arch
@@ -61,7 +62,7 @@ module Platform = struct
     arch : arch;
     docker_tag : string;
     docker_tag_with_digest : string option;
-    ocaml_version : string;
+    ocaml_version : OV.t;
   }
 
   let compare = compare
@@ -78,10 +79,11 @@ module Platform = struct
 
   let label t =
     Printf.sprintf "%s-%s-%s" (distro_to_os t.distro) (OV.string_of_arch t.arch)
-      t.ocaml_version
+      (OV.to_string t.ocaml_version)
 
   let docker_label t =
-    Printf.sprintf "ocaml/opam:%s-ocaml-%s" t.distro t.ocaml_version
+    Printf.sprintf "ocaml/opam:%s-ocaml-%s" t.distro
+      (OV.to_string t.ocaml_version)
 
   let pp = Fmt.of_to_string label
 end
@@ -103,7 +105,7 @@ let macos_platforms : Platform.t list =
       arch = `Aarch64;
       docker_tag = "homebrew/brew";
       docker_tag_with_digest = None;
-      ocaml_version = "5.0";
+      ocaml_version = OVR.v5_0;
     };
     {
       builder = Builders.local;
@@ -112,7 +114,7 @@ let macos_platforms : Platform.t list =
       arch = `Aarch64;
       docker_tag = "homebrew/brew";
       docker_tag_with_digest = None;
-      ocaml_version = "5.1";
+      ocaml_version = OVR.v5_1;
     };
     {
       builder = Builders.local;
@@ -121,7 +123,7 @@ let macos_platforms : Platform.t list =
       arch = `Aarch64;
       docker_tag = "homebrew/brew";
       docker_tag_with_digest = None;
-      ocaml_version = "5.2";
+      ocaml_version = OVR.trunk;
     };
   ]
 
@@ -162,7 +164,8 @@ let get_digests platforms =
   let f (p : Platform.t) =
     match Platform.distro_to_os p.distro with
     | "linux" ->
-        Current.component "peek@,%s %s %s" p.distro p.ocaml_version
+        Current.component "peek@,%s %s %s" p.distro
+          (OV.to_string p.ocaml_version)
           (string_of_arch p.arch)
         |> (let> () = Current.return () in
             let docker_label = Platform.docker_label p in
@@ -193,14 +196,16 @@ let platforms () =
   in
   let platforms =
     [
-      ("5.0", `Debian `V11, `Aarch64);
-      ("5.1", `Debian `V11, `Aarch64);
-      ("5.2", `Debian `V11, `Aarch64);
-      ("5.1", `Debian `V11, `S390x);
-      ("5.2", `Debian `V11, `S390x);
-      ("5.2", `Debian `V11, `Ppc64le);
+      (OVR.v5_0, `Debian `V11, `Aarch64);
+      (OVR.v5_1, `Debian `V11, `Aarch64);
+      (OVR.trunk, `Debian `V11, `Aarch64);
+      (OVR.v5_1, `Debian `V11, `S390x);
+      (OVR.trunk, `Debian `V11, `S390x);
+      (OVR.trunk, `Debian `V11, `Ppc64le);
     ]
     |> List.map (fun (ocaml_version, distro, arch) ->
            v ~arch distro ocaml_version)
   in
-  platforms @ macos_platforms |> get_digests
+  platforms @ macos_platforms
+
+let fetch_platforms () = platforms () |> get_digests

@@ -1,0 +1,9 @@
+(executables
+ (names test)
+ (libraries multicoretests-ci-lib alcotest))
+
+(rule
+ (alias runtest)
+ (package multicoretests-ci-lib)
+ (action
+  (run ./test.exe)))

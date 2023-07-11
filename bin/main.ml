@@ -3,7 +3,7 @@ open Multicoretests_ci_lib
 open Lwt.Infix
 module Platform = Conf.Platform
 
-let platforms = Conf.platforms ()
+let platforms = Conf.fetch_platforms ()
 let jobs = Hashtbl.create 512
 
 (** Latest commit of opam repository *)

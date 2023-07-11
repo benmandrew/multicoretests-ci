@@ -1,6 +1,7 @@
 open Current.Syntax
 open Capnp_rpc_lwt
 open Lwt.Infix
+module OV = Ocaml_version
 module Platform = Conf.Platform
 
 type t = {
@@ -19,8 +20,8 @@ module Op = struct
   module Key = struct
     type t = {
       pool : string;
-      arch : Ocaml_version.arch;
-      version : string;
+      arch : OV.arch;
+      version : OV.t;
       distro : string;
       docker_tag : string;
       commit : Current_git.Commit_id.t;
@@ -31,8 +32,8 @@ module Op = struct
       `Assoc
         [
           ("pool", `String t.pool);
-          ("arch", `String (Ocaml_version.string_of_arch t.arch));
-          ("version", `String t.version);
+          ("arch", `String (OV.string_of_arch t.arch));
+          ("version", `String (OV.to_string t.version));
           ("commit", `String (Current_git.Commit_id.hash t.commit));
         ]
 
@@ -43,9 +44,8 @@ module Op = struct
   module Outcome = Current.Unit
 
   let get_cache_hint (k : Key.t) =
-    Fmt.str "%s/%s/%s/%s" k.pool
-      (Ocaml_version.string_of_arch k.arch)
-      k.version
+    Fmt.str "%s/%s/%s/%s" k.pool (OV.string_of_arch k.arch)
+      (OV.to_string k.version)
       (Current_git.Commit_id.hash k.commit)
 
   let run t job (k : Key.t) () =
@@ -61,7 +61,7 @@ module Op = struct
       match Conf.DD.distro_of_tag k.distro with
       | None ->
           Spec.v k.opam_repo_commit
-            (Printf.sprintf "macos-homebrew-ocaml-%s" k.version)
+            (Printf.sprintf "macos-homebrew-ocaml-%s" (OV.to_string k.version))
             `Macos k.arch
       | Some d ->
           Spec.v k.opam_repo_commit k.docker_tag
@@ -84,9 +84,8 @@ module Op = struct
     >>!= fun (_ : string) -> Lwt_result.return ()
 
   let pp f ((k : Key.t), _) =
-    Fmt.pf f "test %s/%s/%s/%s" k.pool
-      (Ocaml_version.string_of_arch k.arch)
-      k.version
+    Fmt.pf f "test %s/%s/%s/%s" k.pool (OV.string_of_arch k.arch)
+      (OV.to_string k.version)
       (Current_git.Commit_id.hash k.commit)
 
   let auto_cancel = true
